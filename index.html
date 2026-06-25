@@ -1026,7 +1026,7 @@ const todayKey = getTodayKey();
 const currentDay = getUnlockedDay();
 
 if (currentDay === 0) {
-  playPrompt.textContent = 'Your first note unlocks June 25 at 3 AM';
+  playPrompt.textContent = 'Your first note unlocks June 25';
   playPrompt.style.animation = 'none';
   playPrompt.style.opacity = '0.7';
 } else if (currentDay > NOTES.length) {
@@ -1045,7 +1045,7 @@ function startAnimation() {
   const dayNum = getUnlockedDay();
 
   if (noteIndex < 0) {
-    playPrompt.textContent = 'Your first note unlocks June 25 at 3 AM';
+    playPrompt.textContent = 'Your first note unlocks June 25';
     return;
   }
 
