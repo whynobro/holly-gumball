@@ -665,6 +665,7 @@
     .sidebar.open ~ .sidebar-toggle { left: 85vw; }
   }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js"></script>
 </head>
 <body>
 
@@ -857,74 +858,13 @@ function getTodayKey() {
   return new Date().toISOString().slice(0, 10);
 }
 
-// ---- PHYSICS-STYLE BALL PLACEMENT ----
-function placeGumballs() {
-  const container = document.getElementById('gumballs');
-  const globe = document.getElementById('globe');
-  const w = globe.offsetWidth;
-  const h = globe.offsetHeight;
-  const cx = w / 2;
-  const cy = h / 2;
-  const r = w / 2;
+// ---- MATTER.JS PHYSICS GUMBALLS ----
+const { Engine, World, Bodies, Body, Events, Composite } = Matter;
 
-  const ballCount = 45;
-  const ballSizes = [];
-  const positions = [];
-
-  for (let i = 0; i < ballCount; i++) {
-    const size = 18 + Math.random() * 16; // 18-34px, varied sizes
-    ballSizes.push(size);
-  }
-
-  // Place balls with collision detection, pile at bottom
-  for (let i = 0; i < ballCount; i++) {
-    const size = ballSizes[i];
-    let placed = false;
-    let attempts = 0;
-
-    while (!placed && attempts < 200) {
-      attempts++;
-      // Bias toward bottom half with more weight
-      const x = cx + (Math.random() - 0.5) * (w * 0.75);
-      const y = cy + Math.random() * (h * 0.45) + (h * 0.05);
-
-      // Check inside circle (with ball radius margin)
-      const dx = x - cx;
-      const dy = y - cy;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist + size / 2 + 4 > r) continue;
-
-      // Check collision with existing balls
-      let collides = false;
-      for (const pos of positions) {
-        const pdx = x - pos.x;
-        const pdy = y - pos.y;
-        const minDist = (size + pos.size) / 2 + 1;
-        if (pdx * pdx + pdy * pdy < minDist * minDist) {
-          collides = true;
-          break;
-        }
-      }
-      if (collides) continue;
-
-      positions.push({ x, y, size });
-      placed = true;
-    }
-  }
-
-  // Render
-  positions.forEach((pos, i) => {
-    const ball = document.createElement('div');
-    ball.className = 'gumball';
-    const color = BALL_COLORS[i % BALL_COLORS.length];
-    ball.style.width = pos.size + 'px';
-    ball.style.height = pos.size + 'px';
-    ball.style.left = (pos.x - pos.size / 2) + 'px';
-    ball.style.top = (pos.y - pos.size / 2) + 'px';
-    ball.style.background = `radial-gradient(circle at 35% 35%, ${lighten(color, 30)}, ${color} 60%, ${darken(color, 20)})`;
-    container.appendChild(ball);
-  });
-}
+let physicsEngine = null;
+let physicsBalls = [];
+let physicsRunner = null;
+let rafId = null;
 
 function lighten(hex, pct) {
   const num = parseInt(hex.slice(1), 16);
@@ -939,6 +879,127 @@ function darken(hex, pct) {
   const g = Math.max(0, ((num >> 8) & 0xff) - pct);
   const b = Math.max(0, (num & 0xff) - pct);
   return `rgb(${r},${g},${b})`;
+}
+
+function initPhysics() {
+  // Clean up previous
+  if (rafId) cancelAnimationFrame(rafId);
+  if (physicsEngine) Engine.clear(physicsEngine);
+
+  const container = document.getElementById('gumballs');
+  const globe = document.getElementById('globe');
+  container.innerHTML = '';
+
+  const w = globe.offsetWidth;
+  const h = globe.offsetHeight;
+  if (w === 0) return;
+
+  const cx = w / 2;
+  const cy = h / 2;
+  const globeR = w / 2 - 2;
+
+  // Create engine
+  physicsEngine = Engine.create({ gravity: { x: 0, y: 1.2 } });
+
+  // Create circular boundary using static segments
+  const segments = 32;
+  const wallBodies = [];
+  for (let i = 0; i < segments; i++) {
+    const a1 = (i / segments) * Math.PI * 2;
+    const a2 = ((i + 1) / segments) * Math.PI * 2;
+    const x1 = cx + Math.cos(a1) * globeR;
+    const y1 = cy + Math.sin(a1) * globeR;
+    const x2 = cx + Math.cos(a2) * globeR;
+    const y2 = cy + Math.sin(a2) * globeR;
+    const mx = (x1 + x2) / 2;
+    const my = (y1 + y2) / 2;
+    const len = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+    const wall = Bodies.rectangle(mx, my, len, 4, {
+      isStatic: true,
+      angle: angle,
+      render: { visible: false },
+      friction: 0.3,
+      restitution: 0.4,
+    });
+    wallBodies.push(wall);
+  }
+  Composite.add(physicsEngine.world, wallBodies);
+
+  // Create gumballs
+  const ballCount = 40;
+  physicsBalls = [];
+
+  for (let i = 0; i < ballCount; i++) {
+    const radius = 7 + Math.random() * 7; // 7-14 physics radius (14-28px visual diameter)
+    // Drop from scattered positions above center
+    const x = cx + (Math.random() - 0.5) * globeR * 0.8;
+    const y = cy - globeR * 0.3 - Math.random() * globeR * 0.6;
+
+    const body = Bodies.circle(x, y, radius, {
+      restitution: 0.5,
+      friction: 0.1,
+      frictionAir: 0.01,
+      density: 0.002,
+      render: { visible: false },
+    });
+    // Small random initial velocity for spread
+    Body.setVelocity(body, {
+      x: (Math.random() - 0.5) * 3,
+      y: Math.random() * 2,
+    });
+
+    const color = BALL_COLORS[i % BALL_COLORS.length];
+    const el = document.createElement('div');
+    el.className = 'gumball';
+    const diam = radius * 2;
+    el.style.width = diam + 'px';
+    el.style.height = diam + 'px';
+    el.style.background = `radial-gradient(circle at 35% 35%, ${lighten(color, 30)}, ${color} 60%, ${darken(color, 20)})`;
+    container.appendChild(el);
+
+    physicsBalls.push({ body, el, radius });
+    Composite.add(physicsEngine.world, body);
+  }
+
+  // Animation loop
+  function tick() {
+    Engine.update(physicsEngine, 1000 / 60);
+
+    for (const ball of physicsBalls) {
+      const { body, el, radius } = ball;
+      const bx = body.position.x;
+      const by = body.position.y;
+
+      // Keep balls inside globe (force constraint)
+      const dx = bx - cx;
+      const dy = by - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist + radius > globeR) {
+        const overlap = dist + radius - globeR;
+        const nx = dx / dist;
+        const ny = dy / dist;
+        Body.setPosition(body, {
+          x: bx - nx * overlap,
+          y: by - ny * overlap,
+        });
+        // Dampen velocity toward wall
+        const vDot = body.velocity.x * nx + body.velocity.y * ny;
+        if (vDot > 0) {
+          Body.setVelocity(body, {
+            x: body.velocity.x - nx * vDot * 1.3,
+            y: body.velocity.y - ny * vDot * 1.3,
+          });
+        }
+      }
+
+      el.style.left = (bx - radius) + 'px';
+      el.style.top = (by - radius) + 'px';
+    }
+
+    rafId = requestAnimationFrame(tick);
+  }
+  tick();
 }
 
 // ---- FLOATING HEARTS ----
@@ -1062,6 +1123,14 @@ function startAnimation() {
   const clawL = document.getElementById('clawL');
   const clawR = document.getElementById('clawR');
 
+  // Shake the physics balls
+  for (const ball of physicsBalls) {
+    Body.setVelocity(ball.body, {
+      x: (Math.random() - 0.5) * 4,
+      y: -(2 + Math.random() * 3),
+    });
+  }
+
   // Step 1: Claw drops, arms close
   clawSystem.className = 'claw-system grabbing';
   clawL.setAttribute('d', 'M18 8 Q16 20, 18 32');
@@ -1109,13 +1178,13 @@ overlay.addEventListener('click', () => {
 
 // ---- INIT ----
 window.addEventListener('load', () => {
-  placeGumballs();
+  initPhysics();
   renderCollection();
 });
+let resizeTimer;
 window.addEventListener('resize', () => {
-  const container = document.getElementById('gumballs');
-  container.innerHTML = '';
-  placeGumballs();
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(initPhysics, 300);
 });
 </script>
 </body>
