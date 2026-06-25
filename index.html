@@ -1,0 +1,1122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Holly's Gumball Machine</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;600&family=Quicksand:wght@400;600;700&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg-deep: #3d2040;
+    --bg-mid: #4e2a52;
+    --bg-warm: #5c3360;
+    --pink-primary: #DB2777;
+    --pink-soft: #F472B6;
+    --pink-pale: #FBCFE8;
+    --pink-mist: #FDF2F8;
+    --rose-glow: rgba(219,39,119,0.15);
+    --gold: #D4A853;
+    --gold-dim: #A16207;
+    --cream: #FFF8F0;
+    --cream-warm: #FFF1E6;
+    --text-dark: #831843;
+    --text-body: #4a1942;
+    --text-muted: rgba(255,255,255,0.55);
+    --sidebar-bg: #2a1529;
+    --card-border: rgba(251,207,232,0.15);
+  }
+
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    display: flex;
+    background: linear-gradient(160deg, var(--bg-deep) 0%, var(--bg-mid) 40%, var(--bg-warm) 100%);
+    font-family: 'Quicksand', sans-serif;
+    overflow: hidden;
+    position: relative;
+  }
+
+  /* ---- COLLECTION SIDEBAR ---- */
+  .sidebar {
+    width: 0;
+    min-width: 0;
+    height: 100vh;
+    height: 100dvh;
+    background: linear-gradient(180deg, var(--sidebar-bg) 0%, #1e0f1e 100%);
+    border-right: 1px solid var(--card-border);
+    overflow-y: auto;
+    overflow-x: hidden;
+    transition: width 0.35s ease, min-width 0.35s ease, padding 0.35s ease;
+    padding: 0;
+    flex-shrink: 0;
+    z-index: 50;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(219,39,119,0.25) transparent;
+  }
+  .sidebar.open {
+    width: clamp(260px, 35vw, 340px);
+    min-width: 260px;
+    padding: 20px 16px;
+  }
+  .sidebar-header {
+    font-family: 'Caveat', cursive;
+    font-size: 1.4rem;
+    color: var(--pink-soft);
+    margin-bottom: 16px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s ease 0.2s;
+  }
+  .sidebar.open .sidebar-header { opacity: 1; }
+
+  .collected-note {
+    background: rgba(219,39,119,0.06);
+    border: 1px solid var(--card-border);
+    border-radius: 12px;
+    padding: 12px 14px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.15s;
+    opacity: 0;
+    animation: fadeSlideIn 0.3s ease forwards;
+  }
+  .collected-note:hover {
+    background: rgba(219,39,119,0.12);
+    transform: translateX(3px);
+  }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateX(-10px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+
+  .collected-note .cn-day {
+    font-size: 0.65rem;
+    color: var(--gold);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    margin-bottom: 6px;
+  }
+  .collected-note .cn-text {
+    font-family: 'Caveat', cursive;
+    font-size: 1rem;
+    color: var(--pink-pale);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .collected-note .cn-wrapper {
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    margin-top: 8px;
+    opacity: 0.6;
+  }
+  .collected-empty {
+    color: var(--pink-soft);
+    font-size: 0.85rem;
+    opacity: 0.5;
+    text-align: center;
+    padding: 40px 10px;
+    opacity: 0;
+    transition: opacity 0.2s ease 0.3s;
+  }
+  .sidebar.open .collected-empty { opacity: 1; }
+
+  /* Toggle tab */
+  .sidebar-toggle {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 32px;
+    height: 72px;
+    background: linear-gradient(180deg, var(--pink-primary), #9d174d);
+    border-radius: 0 10px 10px 0;
+    cursor: pointer;
+    z-index: 51;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: left 0.35s ease, box-shadow 0.2s;
+    box-shadow: 2px 0 12px rgba(0,0,0,0.3);
+  }
+  .sidebar-toggle:hover { box-shadow: 2px 0 20px rgba(219,39,119,0.4); }
+  .sidebar-toggle .arrow {
+    color: white;
+    font-size: 0.9rem;
+    transition: transform 0.3s;
+  }
+  .sidebar.open ~ .sidebar-toggle {
+    left: clamp(260px, 35vw, 340px);
+  }
+  .sidebar.open ~ .sidebar-toggle .arrow {
+    transform: rotate(180deg);
+  }
+  .sidebar-toggle .badge {
+    position: absolute;
+    top: 6px;
+    right: -4px;
+    width: 18px;
+    height: 18px;
+    background: var(--gold);
+    border-radius: 50%;
+    font-size: 0.6rem;
+    font-weight: 700;
+    color: #1a0a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ---- MAIN AREA ---- */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    min-width: 0;
+    padding: 20px;
+  }
+
+  /* Floating hearts background */
+  .hearts-bg {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .hearts-bg span {
+    position: absolute;
+    font-size: 1.2rem;
+    color: var(--pink-soft);
+    opacity: 0.1;
+    animation: floatUp linear infinite;
+  }
+  @keyframes floatUp {
+    0% { transform: translateY(100vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 0.1; }
+    90% { opacity: 0.1; }
+    100% { transform: translateY(-10vh) rotate(360deg); opacity: 0; }
+  }
+
+  h1 {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.8rem, 5vw, 2.8rem);
+    color: var(--pink-pale);
+    margin-bottom: 6px;
+    text-shadow: 0 2px 15px rgba(219,39,119,0.25);
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+  .subtitle {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin-bottom: 16px;
+    text-align: center;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ---- GUMBALL MACHINE ---- */
+  .machine-wrapper {
+    position: relative;
+    width: clamp(240px, 60vw, 340px);
+    cursor: pointer;
+    z-index: 1;
+  }
+
+  /* Claw system - SVG based for clean look */
+  .claw-system {
+    position: absolute;
+    top: -50px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 12;
+    width: 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .claw-cable {
+    width: 2px;
+    height: 40px;
+    background: linear-gradient(to bottom, var(--gold), #c4a98a);
+    transition: height 0.8s ease-in-out;
+    flex-shrink: 0;
+  }
+  .claw-svg {
+    width: 44px;
+    height: 40px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));
+  }
+  .claw-svg .claw-mount {
+    fill: var(--gold);
+  }
+  .claw-svg .claw-arm-l,
+  .claw-svg .claw-arm-r {
+    fill: none;
+    stroke: #c4a98a;
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    transition: d 0.3s ease;
+  }
+  .claw-svg .claw-tip {
+    fill: #c4a98a;
+  }
+
+  .grabbed-ball-wrap {
+    position: relative;
+    width: 24px;
+    height: 24px;
+    margin-top: -4px;
+    flex-shrink: 0;
+  }
+  .grabbed-ball {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 0.3s;
+    box-shadow: inset -3px -3px 6px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
+  }
+
+  .claw-system.grabbing .claw-cable { height: 100px; }
+  .claw-system.lifting .claw-cable { height: 20px; }
+  .claw-system.lifting .grabbed-ball { opacity: 1; }
+
+  /* Glass globe */
+  .globe {
+    width: 100%;
+    aspect-ratio: 1;
+    border-radius: 50%;
+    background:
+      radial-gradient(ellipse at 25% 25%, rgba(255,255,255,0.18), transparent 50%),
+      radial-gradient(ellipse at 75% 75%, rgba(255,255,255,0.05), transparent 40%),
+      radial-gradient(circle, rgba(253,242,248,0.06) 0%, transparent 70%);
+    border: 3px solid rgba(251,207,232,0.12);
+    position: relative;
+    overflow: hidden;
+    box-shadow:
+      inset 0 0 80px rgba(255,255,255,0.04),
+      inset 0 -20px 40px rgba(0,0,0,0.15),
+      0 8px 32px rgba(0,0,0,0.5);
+  }
+
+  /* Gumballs positioned absolutely for natural pile look */
+  .gumballs {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .gumball {
+    position: absolute;
+    border-radius: 50%;
+    box-shadow:
+      inset -4px -4px 8px rgba(0,0,0,0.3),
+      inset 3px 3px 6px rgba(255,255,255,0.15),
+      0 2px 4px rgba(0,0,0,0.2);
+  }
+  .gumball::after {
+    content: '';
+    position: absolute;
+    top: 20%;
+    left: 25%;
+    width: 30%;
+    height: 20%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.5), transparent);
+    border-radius: 50%;
+  }
+
+  /* Shine overlay on globe */
+  .globe::after {
+    content: '';
+    position: absolute;
+    top: 5%;
+    left: 10%;
+    width: 35%;
+    height: 25%;
+    background: radial-gradient(ellipse, rgba(255,255,255,0.2), transparent);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 5;
+  }
+  .globe::before {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 15%;
+    background: linear-gradient(to top, rgba(0,0,0,0.12), transparent);
+    pointer-events: none;
+    z-index: 4;
+  }
+
+  /* Metal rim between globe and base */
+  .rim {
+    width: 72%;
+    height: 14px;
+    margin: -3px auto 0;
+    background: linear-gradient(to bottom, #d4a853, #b8923e, #c4a050);
+    border-radius: 0 0 4px 4px;
+    position: relative;
+    z-index: 2;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+  }
+
+  /* Base/stand */
+  .base {
+    width: 60%;
+    margin: 0 auto;
+    background: linear-gradient(to bottom, var(--pink-primary), #be185d, #9d174d);
+    border-radius: 4px 4px 16px 16px;
+    padding: 14px 0 10px;
+    text-align: center;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+    position: relative;
+  }
+  .dispenser-area {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .coin-slot {
+    width: 28px;
+    height: 4px;
+    background: #222;
+    border-radius: 2px;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.6);
+  }
+  .dispenser-knob {
+    width: 32px;
+    height: 32px;
+    background: radial-gradient(circle at 40% 35%, #e8d5b0, #b8923e);
+    border-radius: 50%;
+    border: 2px solid #a08040;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.3);
+  }
+  .dispenser-hole {
+    width: 34px;
+    height: 20px;
+    background: #111;
+    border-radius: 0 0 17px 17px;
+    margin: 8px auto 0;
+    box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+    border: 2px solid #6b4a2a;
+    border-top: none;
+  }
+  .base-foot {
+    width: 75%;
+    height: 12px;
+    background: linear-gradient(to bottom, #831843, #6b1237);
+    margin: 8px auto 0;
+    border-radius: 0 0 8px 8px;
+  }
+  .base-plate {
+    width: 85%;
+    height: 6px;
+    background: linear-gradient(to bottom, #8a7060, #5a4535);
+    margin: 0 auto;
+    border-radius: 0 0 3px 3px;
+  }
+
+  /* Prompt */
+  .play-prompt {
+    margin-top: 20px;
+    font-size: 0.95rem;
+    color: var(--pink-pale);
+    animation: pulse 2s ease-in-out infinite;
+    position: relative;
+    z-index: 1;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.55; }
+    50% { opacity: 1; }
+  }
+  .play-prompt.hidden { display: none; }
+
+  .already-seen {
+    color: var(--pink-soft);
+    opacity: 0.6;
+    font-size: 0.8rem;
+    margin-top: 6px;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+  }
+
+  /* Machine shake */
+  @keyframes machineShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-3px) rotate(-0.5deg); }
+    40% { transform: translateX(3px) rotate(0.5deg); }
+    60% { transform: translateX(-2px) rotate(-0.3deg); }
+    80% { transform: translateX(2px) rotate(0.3deg); }
+  }
+  .machine-wrapper.shaking { animation: machineShake 0.5s ease; }
+
+  /* ---- NOTE OVERLAY ---- */
+  .overlay {
+    position: fixed;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+    transition: background 0.5s;
+  }
+  .overlay.active {
+    background: rgba(26,10,26,0.8);
+    pointer-events: all;
+  }
+
+  /* Candy wrapper unwrap animation */
+  .candy-wrapper {
+    position: relative;
+    width: clamp(120px, 40vw, 200px);
+    height: clamp(80px, 26vw, 130px);
+    opacity: 0;
+    transform: scale(0.3);
+    transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.34, 1.4, 0.64, 1);
+  }
+  .overlay.active .candy-wrapper {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .candy-body {
+    position: absolute;
+    top: 15%;
+    left: 15%;
+    width: 70%;
+    height: 70%;
+    border-radius: 30%;
+    box-shadow:
+      inset -4px -4px 10px rgba(0,0,0,0.25),
+      inset 3px 3px 8px rgba(255,255,255,0.15),
+      0 4px 15px rgba(0,0,0,0.3);
+    transition: transform 0.5s ease 0.3s, opacity 0.4s ease 0.6s, border-radius 0.5s ease 0.3s;
+  }
+  .overlay.active .candy-body {
+    transform: scale(1.1);
+    opacity: 0;
+    border-radius: 50%;
+  }
+
+  .candy-twist {
+    position: absolute;
+    top: 50%;
+    width: 28%;
+    height: 40%;
+    transform: translateY(-50%);
+    transition: transform 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s, opacity 0.3s ease 0.5s;
+  }
+  .candy-twist.left {
+    left: -8%;
+    border-radius: 40% 0 0 40%;
+    transform-origin: right center;
+  }
+  .candy-twist.right {
+    right: -8%;
+    border-radius: 0 40% 40% 0;
+    transform-origin: left center;
+  }
+  .overlay.active .candy-twist.left {
+    transform: translateY(-50%) rotate(-45deg) translateX(-30px) scaleX(1.3);
+    opacity: 0;
+  }
+  .overlay.active .candy-twist.right {
+    transform: translateY(-50%) rotate(45deg) translateX(30px) scaleX(1.3);
+    opacity: 0;
+  }
+
+  /* Twist crinkle lines */
+  .candy-twist::before,
+  .candy-twist::after {
+    content: '';
+    position: absolute;
+    top: 30%;
+    width: 2px;
+    height: 40%;
+    background: rgba(255,255,255,0.2);
+    border-radius: 1px;
+  }
+  .candy-twist.left::before { right: 30%; }
+  .candy-twist.left::after { right: 55%; }
+  .candy-twist.right::before { left: 30%; }
+  .candy-twist.right::after { left: 55%; }
+
+  /* Stripe on candy body */
+  .candy-body::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    border-radius: inherit;
+    background: repeating-linear-gradient(
+      135deg,
+      transparent,
+      transparent 8px,
+      rgba(255,255,255,0.12) 8px,
+      rgba(255,255,255,0.12) 12px
+    );
+  }
+
+  .note-card {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0) rotate(-3deg);
+    width: clamp(260px, 78vw, 420px);
+    min-height: 200px;
+    background: linear-gradient(145deg, var(--pink-mist), var(--cream), var(--cream-warm));
+    border-radius: 16px;
+    padding: 36px 28px;
+    box-shadow:
+      0 15px 50px rgba(0,0,0,0.35),
+      0 0 0 1px rgba(0,0,0,0.05),
+      inset 0 1px 0 rgba(255,255,255,0.8);
+    transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) 0.7s, opacity 0.4s ease 0.7s;
+    opacity: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+  }
+  .overlay.active .note-card {
+    transform: translate(-50%, -50%) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  .note-card .day-label {
+    font-size: 0.7rem;
+    color: var(--pink-primary);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 16px;
+  }
+  .note-card .note-text {
+    font-family: 'Caveat', cursive;
+    font-size: clamp(1.2rem, 4vw, 1.6rem);
+    color: var(--text-body);
+    line-height: 1.5;
+  }
+  .note-card .close-hint {
+    margin-top: 24px;
+    font-size: 0.65rem;
+    color: #aaa;
+    letter-spacing: 0.5px;
+  }
+  .note-card::before {
+    content: '\2764';
+    position: absolute;
+    top: 12px;
+    right: 16px;
+    font-size: 1rem;
+    color: var(--pink-primary);
+    opacity: 0.35;
+  }
+  .note-card::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 16px;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 28px,
+      rgba(200,180,160,0.1) 28px,
+      rgba(200,180,160,0.1) 29px
+    );
+    pointer-events: none;
+  }
+
+  /* Mobile: sidebar overlays */
+  @media (max-width: 600px) {
+    .sidebar.open {
+      position: fixed;
+      top: 0; left: 0;
+      height: 100vh;
+      height: 100dvh;
+      z-index: 55;
+      width: 85vw;
+      min-width: 85vw;
+    }
+    .sidebar.open ~ .sidebar-toggle { left: 85vw; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hearts-bg" id="heartsBg"></div>
+
+<!-- Collection sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">Collected Notes</div>
+  <div id="collectedList"></div>
+</div>
+<div class="sidebar-toggle" id="sidebarToggle">
+  <span class="arrow">&#9654;</span>
+  <span class="badge" id="badge" style="display:none">0</span>
+</div>
+
+<!-- Main content -->
+<div class="main">
+  <h1>For My Holly Love</h1>
+  <div class="subtitle">A new note unlocks every morning</div>
+
+  <div class="machine-wrapper" id="machine">
+    <!-- Claw system -->
+    <div class="claw-system" id="clawSystem">
+      <div class="claw-cable"></div>
+      <svg class="claw-svg" viewBox="0 0 44 40" id="clawSvg">
+        <rect class="claw-mount" x="16" y="0" width="12" height="8" rx="2"/>
+        <path class="claw-arm-l" id="clawL" d="M18 8 Q10 20, 8 32"/>
+        <path class="claw-arm-r" id="clawR" d="M26 8 Q34 20, 36 32"/>
+        <circle class="claw-tip" cx="8" cy="32" r="3"/>
+        <circle class="claw-tip" cx="36" cy="32" r="3"/>
+      </svg>
+      <div class="grabbed-ball-wrap">
+        <div class="grabbed-ball" id="grabbedBall"></div>
+      </div>
+    </div>
+
+    <!-- Globe -->
+    <div class="globe" id="globe">
+      <div class="gumballs" id="gumballs"></div>
+    </div>
+
+    <!-- Rim + Base -->
+    <div class="rim"></div>
+    <div class="base">
+      <div class="dispenser-area">
+        <div class="coin-slot"></div>
+        <div class="dispenser-knob"></div>
+      </div>
+      <div class="dispenser-hole"></div>
+      <div class="base-foot"></div>
+      <div class="base-plate"></div>
+    </div>
+  </div>
+
+  <div class="play-prompt" id="playPrompt">Tap the machine</div>
+  <div class="already-seen" id="alreadySeen"></div>
+</div>
+
+<!-- Note overlay -->
+<div class="overlay" id="overlay">
+  <div class="candy-wrapper" id="candyWrapper">
+    <div class="candy-twist left" id="twistLeft"></div>
+    <div class="candy-body" id="candyBody"></div>
+    <div class="candy-twist right" id="twistRight"></div>
+  </div>
+  <div class="note-card" id="noteCard">
+    <div class="day-label" id="dayLabel"></div>
+    <div class="note-text" id="noteText"></div>
+    <div class="close-hint">tap anywhere to close</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 31 LOVE NOTES FOR HOLLY (one per day of the month)
+// Replace these with your own! Feed them to me and I'll swap them in.
+// ============================================================
+const NOTES = [
+  // Day 1 - June 25
+  "I love the way you care so deeply about me. You make me a better person, and I don't think I can ever fully repay that. I love you and happy 4 months my love.\n\nPS. There are 31 of these, they unlock every day before you wake up. I hope you enjoy it!",
+  // Day 2 - June 26
+  "I've never been so happy in a single moment that every thought in my mind just goes quiet. Completely at peace. I'm pretty sure there's a Japanese word for that feeling. I just call it you.",
+  // Day 3 - June 27
+  "Not sleeping on bad thoughts, talking through problems with someone who feels like my truly second half. That's one of my favorite things about us. We don't let things rot.",
+  // Day 4 - June 28
+  "I love how you see me and my imperfections. Most of the time, you just seeing them is enough to make them go away. Like they were never that big to begin with.",
+  // Day 5 - June 29
+  "Sometimes I catch myself mid-sentence telling someone about you, and I realize I've been smiling the entire time without knowing it. That's the effect you have on people. On me especially.",
+  // Day 6 - June 30
+  "There are things I used to carry alone because I thought that's what strength looked like. Then you showed me that letting someone in is sometimes the braver thing to do.",
+  // Day 7 - July 1
+  "I think about the version of me before I knew you, and it's like looking at a rough draft. You didn't rewrite me. You just helped me find the parts worth keeping.",
+  // Day 8 - July 2
+  "You know what gets me? The little things. The way you check on me without making it a big deal. Like caring about me is just your default, my bar for people is so high and you raise it everyday.",
+  // Day 9 - July 3
+  "I never want to be the kind of couple that stops being curious about each other. With you, I don't think that's possible. You keep unfolding, and I keep wanting to see what's next.",
+  // Day 10 - July 4
+  "You have this way of making hard conversations feel safe. I've never had that before. Disagreeing with you doesn't feel like losing. It feels like building. (Unless it's about who's eyes are prettier, then we're throwing hands)",
+  // Day 11 - July 5
+  "Your motivation to be the best version of yourself even when you question why you're doing it at all is profound and causes me to not even imagine the will power you possess. In my philosophy class I realized I've lost some of my inquisitiveness about the world, which is bad. I'm glad I have you here with me to rebuild it.",
+  // Day 12 - July 6
+  "I used to think love was supposed to feel like a movie. Turns out it feels more like a Tuesday spent doing shenanigans with you that's so much better than anything I could have ever imagined.",
+  // Day 13 - July 7
+  "The fact that you chose me still catches me off guard. Not in a self-doubt way, in a grateful way. Like finding out your favorite song was written about you. It still feels wrong in some sort of way in the most normal way possible. How is all of this free? It feels like it should cost me something and yet here we are everyday, our relationship, becoming more and more valuable. (Best investment of all time btw).",
+  // Day 14 - July 8
+  "Holly, you are warm in a way that doesn't ask for anything in return. You just give it. And I felt it instantly. I felt it the moment I met you, Lord knows. My love your aura is so pretty and loving, I knew it the moment I saw you.",
+  // Day 15 - July 9
+  "One of the things I admire most about you is how you go after what you want. No performance, no announcement, just quiet relentless effort. It makes me want to match your energy. People always say love is corny until you find it and it's so so true. I genuinely want to become a better person because of us.",
+  // Day 16 - July 10
+  "There's a certain kind of silence with you that isn't empty. It's full. Like we're both just existing in the same space and that's more than enough. As time passes the silence becomes less awkward and more loving. What a joy! Makes me think of my grandpa, he's so calm and my role model for personality.",
+  // Day 17 - July 11
+  "You make me want to be honest about the messy stuff. The fears, the doubts, the weird 2am thoughts. Because you never make me feel stupid for having them. I feel like your thoughts are just a sense of truth for me. Not in the following blindly type of way but so many things I talk through with you I end up on your side. Teaching me about people, sexuality and all of this other stuff I kind of threw in a middle box of it's somewhere in the middle of the two extreme views. Which I do with many things I don't fully understand. Talking with you has helped me grow into the version of myself that I like much more rather than for so many years with religion and sexuality topics sort of suppress and feed back nonsense information because it helps me fit in. For so many years I think I put way too much thought into what other people think, I know it's corny and whatever but it's a flaw I have and admit to and want to continue to work on fixing.",
+  // Day 18 - July 12
+  "I keep a running list in my head of moments with you I never want to forget. It's getting long, Holly. Really long. And I have quite a bad memory so you know these are important.",
+  // Day 19 - July 13
+  "You love people without keeping score. I've watched you do it, and it's the most quietly powerful thing I've ever seen. It changed how I want to love.",
+  // Day 20 - July 14
+  "I think the thing that surprised me most about falling for you is how calm it was. No chaos, no drama. Just this slow, steady feeling of, 'oh, there you are. I've been looking for you.'",
+  // Day 21 - July 15
+  "I love that you make me laugh at myself. Not in a mean way. In that way, suddenly the thing I was stressed about just... doesn't matter anymore. I know when we're on facetime sometimes you'll be like \"why are you laughing with that cute mad face of yours,\" and I'm just happy to be talking with you.",
+  // Day 22 - July 16
+  "If someone told me a year ago that I'd feel this way about another person, I'd call cap. Now I get it. Some things you just have to feel to believe. I told you I worried if I have ever loved someone before but now I have no worries.",
+  // Day 23 - July 17
+  "You treat my dreams like they're real, even when they're half-formed and I can barely explain them. That kind of belief from someone you love is rare. I don't take it for granted. One day I have an idea for an app, the next day I'm building it because I can barely keep up with my amazing girlfriend. Lord knows how much money I'm gonna have to make to prove to myself I'm worthy of your love. And don't get mad at me for that I know, it's good motivation. Yes, yes it's not always about money and I know that, I want to learn the balance with you.",
+  // Day 24 - July 18
+  "Holly, you have this way of holding space for people without even trying. I've seen you do it for strangers. You did it for me before you even knew you were doing it. You've changed my views on so many things in such a good way.",
+  // Day 25 - July 19
+  "I love how we can go from the deepest conversation to the dumbest joke in three seconds flat. I know it pisses you off sometimes that I joke during everything but that has to be the best way to live life, nothing is that serious and I know you disagree but it's our life and we get to decide what is worth stressing us out enough to not laugh along the way.",
+  // Day 26 - July 20
+  "You don't just listen to me. You hear me. There's a difference, and you're one of the only people who's ever shown me what that looks like.",
+  // Day 27 - July 21
+  "I think about the future a lot more now. Not because I have to, but because for the first time it's something I actually want to get to. And you're in every version of it.",
+  // Day 28 - July 22
+  "I don't like when people argue about who loves who more. I don't think this makes any sense to me. I love you the maximum amount I can and try my hardest to love you in the way that is best for you, for us!",
+  // Day 29 - July 23
+  "Holly, you are the kind of person I'd want to know even if I wasn't in love with you. The fact that I get both is something I'll never stop being grateful for.",
+  // Day 30 - July 24
+  "You make the ordinary stuff feel like it matters. Coffee in the morning, a text in the middle of the day, falling asleep next to you. You turned the small things into the big things.",
+  // Day 31 - July 25
+  "Thirty-one notes and I could keep going. I could fill a thousand of these. But here's the simple version: you are my favorite person, Holly. Today, tomorrow, and every day I get with you.",
+];
+
+// Wrapper colors for collection (each note gets one)
+const WRAPPER_COLORS = [
+  '#DB2777','#D4A853','#A855F7','#EC4899','#F472B6',
+  '#BE185D','#E879A8','#C084FC','#F59E0B','#FB7185',
+  '#D946EF','#F9A8D4','#9D174D','#F0ABFC','#E11D48',
+  '#FDA4AF','#B8923E','#A78BFA','#F472B6','#FBCFE8',
+  '#831843','#C084FC','#D4A853','#E879A8','#DB2777',
+  '#F9A8D4','#A855F7','#FB7185','#BE185D','#F0ABFC',
+  '#EC4899',
+];
+
+const BALL_COLORS = [
+  '#DB2777','#F472B6','#EC4899','#BE185D','#D4A853',
+  '#F9A8D4','#A855F7','#E879A8','#F0ABFC','#FB7185',
+  '#C084FC','#FDA4AF','#FBCFE8','#F59E0B','#E11D48',
+  '#D946EF','#F472B6','#FCA5A5','#A78BFA','#F0ABFC',
+];
+
+// ---- DATE LOGIC ----
+// Day 1 unlocks June 25, 2026 at 3:00 AM local time
+// Day 2 unlocks June 26, 2026 at 3:00 AM, etc.
+const START_DATE = new Date(2026, 5, 25, 3, 0, 0); // June 25 2026 3AM (months 0-indexed)
+const UNLOCK_HOUR = 3; // 3 AM
+
+function getUnlockedDay() {
+  const now = new Date();
+  // How many days since start (accounting for 3AM unlock)
+  const effectiveNow = new Date(now);
+  if (effectiveNow.getHours() < UNLOCK_HOUR) {
+    effectiveNow.setDate(effectiveNow.getDate() - 1);
+  }
+  const diffMs = effectiveNow - START_DATE;
+  if (diffMs < 0) return 0; // not started yet
+  const dayNum = Math.floor(diffMs / 86400000) + 1;
+  return Math.min(dayNum, NOTES.length);
+}
+
+function getTodayNoteIndex() {
+  const day = getUnlockedDay();
+  return day > 0 ? day - 1 : -1;
+}
+
+function getDayOfMonth() {
+  return getUnlockedDay();
+}
+
+function getTodayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ---- PHYSICS-STYLE BALL PLACEMENT ----
+function placeGumballs() {
+  const container = document.getElementById('gumballs');
+  const globe = document.getElementById('globe');
+  const w = globe.offsetWidth;
+  const h = globe.offsetHeight;
+  const cx = w / 2;
+  const cy = h / 2;
+  const r = w / 2;
+
+  const ballCount = 45;
+  const ballSizes = [];
+  const positions = [];
+
+  for (let i = 0; i < ballCount; i++) {
+    const size = 18 + Math.random() * 16; // 18-34px, varied sizes
+    ballSizes.push(size);
+  }
+
+  // Place balls with collision detection, pile at bottom
+  for (let i = 0; i < ballCount; i++) {
+    const size = ballSizes[i];
+    let placed = false;
+    let attempts = 0;
+
+    while (!placed && attempts < 200) {
+      attempts++;
+      // Bias toward bottom half with more weight
+      const x = cx + (Math.random() - 0.5) * (w * 0.75);
+      const y = cy + Math.random() * (h * 0.45) + (h * 0.05);
+
+      // Check inside circle (with ball radius margin)
+      const dx = x - cx;
+      const dy = y - cy;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist + size / 2 + 4 > r) continue;
+
+      // Check collision with existing balls
+      let collides = false;
+      for (const pos of positions) {
+        const pdx = x - pos.x;
+        const pdy = y - pos.y;
+        const minDist = (size + pos.size) / 2 + 1;
+        if (pdx * pdx + pdy * pdy < minDist * minDist) {
+          collides = true;
+          break;
+        }
+      }
+      if (collides) continue;
+
+      positions.push({ x, y, size });
+      placed = true;
+    }
+  }
+
+  // Render
+  positions.forEach((pos, i) => {
+    const ball = document.createElement('div');
+    ball.className = 'gumball';
+    const color = BALL_COLORS[i % BALL_COLORS.length];
+    ball.style.width = pos.size + 'px';
+    ball.style.height = pos.size + 'px';
+    ball.style.left = (pos.x - pos.size / 2) + 'px';
+    ball.style.top = (pos.y - pos.size / 2) + 'px';
+    ball.style.background = `radial-gradient(circle at 35% 35%, ${lighten(color, 30)}, ${color} 60%, ${darken(color, 20)})`;
+    container.appendChild(ball);
+  });
+}
+
+function lighten(hex, pct) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.min(255, ((num >> 16) & 0xff) + pct);
+  const g = Math.min(255, ((num >> 8) & 0xff) + pct);
+  const b = Math.min(255, (num & 0xff) + pct);
+  return `rgb(${r},${g},${b})`;
+}
+function darken(hex, pct) {
+  const num = parseInt(hex.slice(1), 16);
+  const r = Math.max(0, ((num >> 16) & 0xff) - pct);
+  const g = Math.max(0, ((num >> 8) & 0xff) - pct);
+  const b = Math.max(0, (num & 0xff) - pct);
+  return `rgb(${r},${g},${b})`;
+}
+
+// ---- FLOATING HEARTS ----
+const heartsBg = document.getElementById('heartsBg');
+for (let i = 0; i < 12; i++) {
+  const span = document.createElement('span');
+  span.textContent = ['♥','♥','❤','♥','✦'][i % 5];
+  span.style.left = (Math.random() * 100) + '%';
+  span.style.animationDuration = (10 + Math.random() * 15) + 's';
+  span.style.animationDelay = (Math.random() * 12) + 's';
+  span.style.fontSize = (0.7 + Math.random() * 0.8) + 'rem';
+  heartsBg.appendChild(span);
+}
+
+// ---- COLLECTION (localStorage) ----
+function getCollection() {
+  try {
+    return JSON.parse(localStorage.getItem('holly-gumball-collection') || '{}');
+  } catch { return {}; }
+}
+function saveToCollection(dayOfMonth, noteText) {
+  const col = getCollection();
+  const key = getTodayKey();
+  col[key] = { day: dayOfMonth, text: noteText, color: WRAPPER_COLORS[(dayOfMonth - 1) % WRAPPER_COLORS.length] };
+  localStorage.setItem('holly-gumball-collection', JSON.stringify(col));
+}
+
+function renderCollection() {
+  const list = document.getElementById('collectedList');
+  const col = getCollection();
+  const entries = Object.entries(col).sort((a, b) => a[0].localeCompare(b[0]));
+  const badge = document.getElementById('badge');
+
+  list.innerHTML = '';
+  if (entries.length === 0) {
+    list.innerHTML = '<div class="collected-empty">No notes collected yet.<br>Tap the machine to get today\'s!</div>';
+    badge.style.display = 'none';
+    return;
+  }
+
+  badge.style.display = 'flex';
+  badge.textContent = entries.length;
+
+  entries.forEach(([dateKey, data], i) => {
+    const note = document.createElement('div');
+    note.className = 'collected-note';
+    note.style.animationDelay = (i * 0.05) + 's';
+
+    const dateStr = new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+
+    note.innerHTML = `
+      <div class="cn-day">Day ${data.day} · ${dateStr}</div>
+      <div class="cn-text">${data.text}</div>
+      <div class="cn-wrapper" style="background: linear-gradient(90deg, ${data.color}, ${data.color}88);"></div>
+    `;
+    note.addEventListener('click', () => {
+      showNote(data.day, data.text, data.color);
+    });
+    list.appendChild(note);
+  });
+}
+
+// ---- SIDEBAR TOGGLE ----
+const sidebar = document.getElementById('sidebar');
+const sidebarToggle = document.getElementById('sidebarToggle');
+sidebarToggle.addEventListener('click', () => {
+  sidebar.classList.toggle('open');
+});
+
+// ---- MACHINE ANIMATION ----
+let animating = false;
+const machine = document.getElementById('machine');
+const clawSystem = document.getElementById('clawSystem');
+const grabbedBall = document.getElementById('grabbedBall');
+const overlay = document.getElementById('overlay');
+const noteText = document.getElementById('noteText');
+const dayLabel = document.getElementById('dayLabel');
+const candyBody = document.getElementById('candyBody');
+const twistLeft = document.getElementById('twistLeft');
+const twistRight = document.getElementById('twistRight');
+const playPrompt = document.getElementById('playPrompt');
+const alreadySeen = document.getElementById('alreadySeen');
+
+const todayKey = getTodayKey();
+const currentDay = getUnlockedDay();
+
+if (currentDay === 0) {
+  playPrompt.textContent = 'Your first note unlocks June 25 at 3 AM';
+  playPrompt.style.animation = 'none';
+  playPrompt.style.opacity = '0.7';
+} else if (currentDay > NOTES.length) {
+  playPrompt.textContent = "You've collected all 31 notes!";
+  playPrompt.style.animation = 'none';
+} else if (getCollection()[todayKey]) {
+  alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
+}
+
+machine.addEventListener('click', startAnimation);
+
+function startAnimation() {
+  if (animating) return;
+
+  const noteIndex = getTodayNoteIndex();
+  const dayNum = getUnlockedDay();
+
+  if (noteIndex < 0) {
+    playPrompt.textContent = 'Your first note unlocks June 25 at 3 AM';
+    return;
+  }
+
+  animating = true;
+  playPrompt.classList.add('hidden');
+  alreadySeen.textContent = '';
+  const ballColor = BALL_COLORS[noteIndex % BALL_COLORS.length];
+  const wrapperColor = WRAPPER_COLORS[noteIndex % WRAPPER_COLORS.length];
+  grabbedBall.style.background = ballColor;
+  candyBody.style.background = wrapperColor;
+  twistLeft.style.background = wrapperColor;
+  twistRight.style.background = wrapperColor;
+
+  const clawL = document.getElementById('clawL');
+  const clawR = document.getElementById('clawR');
+
+  // Step 1: Claw drops, arms close
+  clawSystem.className = 'claw-system grabbing';
+  clawL.setAttribute('d', 'M18 8 Q16 20, 18 32');
+  clawR.setAttribute('d', 'M26 8 Q28 20, 26 32');
+  machine.classList.add('shaking');
+  setTimeout(() => machine.classList.remove('shaking'), 500);
+
+  // Step 2: Claw lifts with ball
+  setTimeout(() => {
+    clawSystem.className = 'claw-system lifting';
+  }, 1300);
+
+  // Step 3: Show note overlay
+  setTimeout(() => {
+    showNote(dayNum, NOTES[noteIndex], wrapperColor);
+    saveToCollection(dayNum, NOTES[noteIndex]);
+    renderCollection();
+  }, 2300);
+
+  // Reset claw
+  setTimeout(() => {
+    clawSystem.className = 'claw-system';
+    clawL.setAttribute('d', 'M18 8 Q10 20, 8 32');
+    clawR.setAttribute('d', 'M26 8 Q34 20, 36 32');
+    animating = false;
+  }, 2900);
+}
+
+function showNote(dayNum, text, color) {
+  dayLabel.textContent = 'Day ' + dayNum + ' of 31';
+  const fullText = text + '\n\nI love you ❤';
+  noteText.innerHTML = fullText.replace(/\n/g, '<br>');
+  candyBody.style.background = color || '#e74c6f';
+  twistLeft.style.background = color || '#e74c6f';
+  twistRight.style.background = color || '#e74c6f';
+  overlay.classList.add('active');
+}
+
+overlay.addEventListener('click', () => {
+  overlay.classList.remove('active');
+  if (getCollection()[todayKey]) {
+    alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
+  }
+});
+
+// ---- INIT ----
+window.addEventListener('load', () => {
+  placeGumballs();
+  renderCollection();
+});
+window.addEventListener('resize', () => {
+  const container = document.getElementById('gumballs');
+  container.innerHTML = '';
+  placeGumballs();
+});
+</script>
+</body>
+</html>
