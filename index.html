@@ -238,7 +238,7 @@
     z-index: 1;
   }
 
-  /* Claw system - SVG based for clean look */
+  /* Claw system - positioned above globe, descends into it */
   .claw-system {
     position: absolute;
     top: -50px;
@@ -249,13 +249,23 @@
     display: flex;
     flex-direction: column;
     align-items: center;
+    transition: top 0.9s ease-in-out;
+  }
+  .claw-system.descending {
+    top: 35%;
+  }
+  .claw-system.grabbed {
+    top: 35%;
+  }
+  .claw-system.lifting {
+    top: -50px;
   }
   .claw-cable {
     width: 2px;
-    height: 40px;
+    min-height: 40px;
     background: linear-gradient(to bottom, var(--gold), #c4a98a);
-    transition: height 0.8s ease-in-out;
     flex-shrink: 0;
+    flex-grow: 1;
   }
   .claw-svg {
     width: 44px;
@@ -272,7 +282,6 @@
     stroke: #c4a98a;
     stroke-width: 2.5;
     stroke-linecap: round;
-    transition: d 0.3s ease;
   }
   .claw-svg .claw-tip {
     fill: #c4a98a;
@@ -290,12 +299,10 @@
     height: 24px;
     border-radius: 50%;
     opacity: 0;
-    transition: opacity 0.3s;
+    transition: opacity 0.2s;
     box-shadow: inset -3px -3px 6px rgba(0,0,0,0.3), 0 2px 8px rgba(0,0,0,0.2);
   }
-
-  .claw-system.grabbing .claw-cable { height: 100px; }
-  .claw-system.lifting .claw-cable { height: 20px; }
+  .claw-system.grabbed .grabbed-ball { opacity: 1; }
   .claw-system.lifting .grabbed-ball { opacity: 1; }
 
   /* Glass globe */
@@ -929,13 +936,20 @@ function initPhysics() {
   }
   Composite.add(physicsEngine.world, wallBodies);
 
-  // Create gumballs
-  const ballCount = 40;
+  // Create 31 gumballs (one per note), skip already-collected ones
+  const collectedDays = new Set();
+  const col = getCollection();
+  for (const entry of Object.values(col)) {
+    collectedDays.add(entry.day);
+  }
+
   physicsBalls = [];
 
-  for (let i = 0; i < ballCount; i++) {
-    const radius = 7 + Math.random() * 7; // 7-14 physics radius (14-28px visual diameter)
-    // Drop from scattered positions above center
+  for (let i = 0; i < 31; i++) {
+    const dayNum = i + 1;
+    if (collectedDays.has(dayNum)) continue; // already grabbed
+
+    const radius = 9 + Math.random() * 5; // 9-14 physics radius
     const x = cx + (Math.random() - 0.5) * globeR * 0.8;
     const y = cy - globeR * 0.3 - Math.random() * globeR * 0.6;
 
@@ -946,7 +960,6 @@ function initPhysics() {
       density: 0.002,
       render: { visible: false },
     });
-    // Small random initial velocity for spread
     Body.setVelocity(body, {
       x: (Math.random() - 0.5) * 3,
       y: Math.random() * 2,
@@ -961,7 +974,7 @@ function initPhysics() {
     el.style.background = `radial-gradient(circle at 35% 35%, ${lighten(color, 30)}, ${color} 60%, ${darken(color, 20)})`;
     container.appendChild(el);
 
-    physicsBalls.push({ body, el, radius });
+    physicsBalls.push({ body, el, radius, dayNum, color });
     Composite.add(physicsEngine.world, body);
   }
 
@@ -1116,9 +1129,10 @@ function startAnimation() {
   animating = true;
   playPrompt.classList.add('hidden');
   alreadySeen.textContent = '';
+
   const ballColor = BALL_COLORS[noteIndex % BALL_COLORS.length];
   const wrapperColor = WRAPPER_COLORS[noteIndex % WRAPPER_COLORS.length];
-  grabbedBall.style.background = ballColor;
+  grabbedBall.style.background = `radial-gradient(circle at 35% 35%, ${lighten(ballColor, 30)}, ${ballColor} 60%, ${darken(ballColor, 20)})`;
   candyBody.style.background = wrapperColor;
   twistLeft.style.background = wrapperColor;
   twistRight.style.background = wrapperColor;
@@ -1126,32 +1140,46 @@ function startAnimation() {
   const clawL = document.getElementById('clawL');
   const clawR = document.getElementById('clawR');
 
-  // Shake the physics balls
-  for (const ball of physicsBalls) {
-    Body.setVelocity(ball.body, {
-      x: (Math.random() - 0.5) * 4,
-      y: -(2 + Math.random() * 3),
-    });
-  }
+  // Find the target ball in physics (matching dayNum)
+  const targetBall = physicsBalls.find(b => b.dayNum === dayNum);
 
-  // Step 1: Claw drops, arms close
-  clawSystem.className = 'claw-system grabbing';
-  clawL.setAttribute('d', 'M18 8 Q16 20, 18 32');
-  clawR.setAttribute('d', 'M26 8 Q28 20, 26 32');
+  // Step 1: Claw descends into globe, arms open
+  clawL.setAttribute('d', 'M18 8 Q10 20, 8 32');
+  clawR.setAttribute('d', 'M26 8 Q34 20, 36 32');
+  clawSystem.className = 'claw-system descending';
   machine.classList.add('shaking');
   setTimeout(() => machine.classList.remove('shaking'), 500);
 
-  // Step 2: Claw lifts with ball
+  // Step 2: Arms close (grab), hide the physics ball, show grabbed ball
+  setTimeout(() => {
+    clawL.setAttribute('d', 'M18 8 Q17 20, 19 32');
+    clawR.setAttribute('d', 'M26 8 Q27 20, 25 32');
+    clawSystem.className = 'claw-system grabbed';
+
+    if (targetBall) {
+      targetBall.el.style.opacity = '0';
+      targetBall.el.style.transition = 'opacity 0.3s';
+    }
+  }, 1000);
+
+  // Step 3: Lift out
   setTimeout(() => {
     clawSystem.className = 'claw-system lifting';
-  }, 1300);
+  }, 1600);
 
-  // Step 3: Show note overlay
+  // Step 4: Show note overlay, remove ball from physics
   setTimeout(() => {
     showNote(dayNum, NOTES[noteIndex], wrapperColor);
     saveToCollection(dayNum, NOTES[noteIndex]);
     renderCollection();
-  }, 2300);
+
+    // Remove ball from physics world
+    if (targetBall) {
+      Composite.remove(physicsEngine.world, targetBall.body);
+      targetBall.el.remove();
+      physicsBalls = physicsBalls.filter(b => b !== targetBall);
+    }
+  }, 2600);
 
   // Reset claw
   setTimeout(() => {
@@ -1159,7 +1187,7 @@ function startAnimation() {
     clawL.setAttribute('d', 'M18 8 Q10 20, 8 32');
     clawR.setAttribute('d', 'M26 8 Q34 20, 36 32');
     animating = false;
-  }, 2900);
+  }, 3200);
 }
 
 function showNote(dayNum, text, color) {
