@@ -864,8 +864,17 @@ function getDayOfMonth() {
   return getUnlockedDay();
 }
 
+// Local calendar date as YYYY-MM-DD (NOT UTC). Using toISOString() here caused an
+// off-by-one: in the evening (local time behind UTC) it rolled to the next day, so a
+// note labeled "Day 3 / June 27" got stored/shown under June 28.
+function localDateStr(d = new Date()) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
 function getTodayKey() {
-  return new Date().toISOString().slice(0, 10);
+  return localDateStr();
 }
 
 // ---- MATTER.JS PHYSICS GUMBALLS ----
@@ -1036,17 +1045,42 @@ function getCollection() {
     return JSON.parse(localStorage.getItem('holly-gumball-collection') || '{}');
   } catch { return {}; }
 }
+// One-time migration: older versions keyed entries by calendar date (and the date could
+// be off by one due to a UTC bug). Re-key everything by 'day-N' so each note has one
+// stable slot, preserving the original calendar date for display.
+function migrateCollection() {
+  const col = getCollection();
+  let changed = false;
+  const out = {};
+  for (const [key, data] of Object.entries(col)) {
+    if (!data || typeof data.day !== 'number') continue;
+    const newKey = 'day-' + data.day;
+    const date = data.date || (/^\d{4}-\d{2}-\d{2}$/.test(key) ? key : undefined);
+    out[newKey] = { ...data, date };
+    if (newKey !== key || data.date !== date) changed = true;
+  }
+  if (changed) localStorage.setItem('holly-gumball-collection', JSON.stringify(out));
+}
 function saveToCollection(dayOfMonth, noteText) {
   const col = getCollection();
-  const key = getTodayKey();
-  col[key] = { day: dayOfMonth, text: noteText, color: WRAPPER_COLORS[(dayOfMonth - 1) % WRAPPER_COLORS.length] };
+  // Key by the note's day number (stable identity, one note per day) so clock drift
+  // or re-opening can't create duplicate/mis-dated entries. Store the local date for display.
+  const key = 'day-' + dayOfMonth;
+  col[key] = {
+    day: dayOfMonth,
+    date: getTodayKey(),
+    text: noteText,
+    color: WRAPPER_COLORS[(dayOfMonth - 1) % WRAPPER_COLORS.length],
+  };
   localStorage.setItem('holly-gumball-collection', JSON.stringify(col));
 }
 
 function renderCollection() {
   const list = document.getElementById('collectedList');
   const col = getCollection();
-  const entries = Object.entries(col).sort((a, b) => a[0].localeCompare(b[0]));
+  // Sort by note day number (ascending). String-sorting the keys broke ordering
+  // ("day-10" sorts before "day-3").
+  const entries = Object.entries(col).sort((a, b) => (a[1].day || 0) - (b[1].day || 0));
   const badge = document.getElementById('badge');
 
   list.innerHTML = '';
@@ -1059,15 +1093,19 @@ function renderCollection() {
   badge.style.display = 'flex';
   badge.textContent = entries.length;
 
-  entries.forEach(([dateKey, data], i) => {
+  entries.forEach(([key, data], i) => {
     const note = document.createElement('div');
     note.className = 'collected-note';
     note.style.animationDelay = (i * 0.05) + 's';
 
-    const dateStr = new Date(dateKey + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    // Prefer the stored date; fall back to the key for legacy date-keyed entries.
+    const dateSource = data.date || (/^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null);
+    const dateStr = dateSource
+      ? new Date(dateSource + 'T12:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      : '';
 
     note.innerHTML = `
-      <div class="cn-day">Day ${data.day} · ${dateStr}</div>
+      <div class="cn-day">Day ${data.day}${dateStr ? ' · ' + dateStr : ''}</div>
       <div class="cn-text">${data.text}</div>
       <div class="cn-wrapper" style="background: linear-gradient(90deg, ${data.color}, ${data.color}88);"></div>
     `;
@@ -1099,8 +1137,12 @@ const twistRight = document.getElementById('twistRight');
 const playPrompt = document.getElementById('playPrompt');
 const alreadySeen = document.getElementById('alreadySeen');
 
-const todayKey = getTodayKey();
+migrateCollection();
 const currentDay = getUnlockedDay();
+// True once today's note (by day number) is in the collection.
+function todayCollected() {
+  return !!getCollection()['day-' + getUnlockedDay()];
+}
 
 if (currentDay === 0) {
   playPrompt.textContent = 'Your first note unlocks June 25';
@@ -1109,7 +1151,7 @@ if (currentDay === 0) {
 } else if (currentDay > NOTES.length) {
   playPrompt.textContent = "You've collected all 31 notes!";
   playPrompt.style.animation = 'none';
-} else if (getCollection()[todayKey]) {
+} else if (todayCollected()) {
   alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
 }
 
@@ -1202,7 +1244,7 @@ function showNote(dayNum, text, color) {
 
 overlay.addEventListener('click', () => {
   overlay.classList.remove('active');
-  if (getCollection()[todayKey]) {
+  if (todayCollected()) {
     alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
   }
 });
