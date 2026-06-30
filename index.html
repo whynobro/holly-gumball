@@ -1371,7 +1371,9 @@ overlay.addEventListener('click', () => {
 // collection so it starts clean, then strips the flag from the URL. Lets me clear
 // stale test data off my own phone without touching Holly's device or the code.
 function maybeReset() {
-  if (location.hash === '#reset' || location.search.includes('reset')) {
+  // Exact match only, so a stray "reset" substring elsewhere in the URL can't wipe data.
+  const params = new URLSearchParams(location.search);
+  if (location.hash === '#reset' || params.get('reset') === '1') {
     localStorage.removeItem('holly-gumball-collection');
     history.replaceState(null, '', location.pathname);
   }
