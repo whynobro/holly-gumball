@@ -1333,7 +1333,18 @@ overlay.addEventListener('click', () => {
 });
 
 // ---- INIT ----
+// Dev/test reset: visiting the page with #reset (or ?reset) wipes this device's
+// collection so it starts clean, then strips the flag from the URL. Lets me clear
+// stale test data off my own phone without touching Holly's device or the code.
+function maybeReset() {
+  if (location.hash === '#reset' || location.search.includes('reset')) {
+    localStorage.removeItem('holly-gumball-collection');
+    history.replaceState(null, '', location.pathname);
+  }
+}
+
 window.addEventListener('load', () => {
+  maybeReset();
   initPhysics();
   renderCollection();
 });
