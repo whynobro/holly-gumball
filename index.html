@@ -856,6 +856,14 @@ const BALL_COLORS = [
 const START_DATE = new Date(2026, 5, 25, 3, 0, 0); // June 25 2026 3AM
 const UNLOCK_HOUR = 3; // 3 AM
 
+// The calendar date a given day's note unlocks (Day 1 = June 25), as local YYYY-MM-DD.
+// This is what the collected-notes list should show, NOT the date she happened to grab it.
+function unlockDateStr(dayNum) {
+  const d = new Date(2026, 5, 25); // June 25 2026, local midnight
+  d.setDate(d.getDate() + (dayNum - 1));
+  return localDateStr(d);
+}
+
 function getUnlockedDay() {
   const now = new Date();
   // How many days since start (accounting for 3AM unlock)
@@ -1082,7 +1090,9 @@ function migrateCollection() {
   for (const [key, data] of Object.entries(col)) {
     if (!data || typeof data.day !== 'number') continue;
     const newKey = 'day-' + data.day;
-    const date = data.date || (/^\d{4}-\d{2}-\d{2}$/.test(key) ? key : undefined);
+    // Always set the date to the note's unlock date (Day 1 = June 25). Older versions
+    // stored the date she happened to collect it, which was wrong.
+    const date = unlockDateStr(data.day);
     out[newKey] = { ...data, date };
     if (newKey !== key || data.date !== date) changed = true;
   }
@@ -1095,7 +1105,7 @@ function saveToCollection(dayOfMonth, noteText) {
   const key = 'day-' + dayOfMonth;
   col[key] = {
     day: dayOfMonth,
-    date: getTodayKey(),
+    date: unlockDateStr(dayOfMonth), // the note's unlock date, not the day she grabbed it
     text: noteText,
     color: WRAPPER_COLORS[(dayOfMonth - 1) % WRAPPER_COLORS.length],
     fav: col[key] ? !!col[key].fav : false, // keep favorite state if re-collected
