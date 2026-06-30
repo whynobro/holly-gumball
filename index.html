@@ -289,14 +289,14 @@
 
   .grabbed-ball-wrap {
     position: relative;
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
     margin-top: -4px;
     flex-shrink: 0;
   }
   .grabbed-ball {
-    width: 24px;
-    height: 24px;
+    width: 34px;
+    height: 34px;
     border-radius: 50%;
     opacity: 0;
     transition: opacity 0.2s;
@@ -919,6 +919,12 @@ let physicsEngine = null;
 let physicsBalls = [];
 let physicsRunner = null;
 let rafId = null;
+// Globe geometry (set by initPhysics) so the claw animation can compute a grab point.
+let physicsMeta = { cx: 0, cy: 0, globeR: 0 };
+// When set, the named ball is lerped toward grabTarget each tick (gravity/walls skipped
+// for it) so it rises to meet the descending claw.
+let grabbingBall = null;
+let grabTarget = { x: 0, y: 0 };
 
 function lighten(hex, pct) {
   const num = parseInt(hex.slice(1), 16);
@@ -951,6 +957,7 @@ function initPhysics() {
   const cx = w / 2;
   const cy = h / 2;
   const globeR = w / 2 - 2;
+  physicsMeta = { cx, cy, globeR }; // share geometry with the claw animation
 
   // Create engine
   physicsEngine = Engine.create({ gravity: { x: 0, y: 1.2 } });
@@ -993,7 +1000,8 @@ function initPhysics() {
     const dayNum = i + 1;
     if (collectedDays.has(dayNum)) continue; // already grabbed
 
-    const radius = 9 + Math.random() * 5; // 9-14 physics radius
+    // Scale ball size to the globe so they fill it nicely on any screen (~10-14% of radius).
+    const radius = globeR * 0.10 + Math.random() * globeR * 0.04;
     const x = cx + (Math.random() - 0.5) * globeR * 0.8;
     const y = cy - globeR * 0.3 - Math.random() * globeR * 0.6;
 
@@ -1028,6 +1036,18 @@ function initPhysics() {
 
     for (const ball of physicsBalls) {
       const { body, el, radius } = ball;
+
+      // The ball being grabbed glides toward the claw grab point, ignoring gravity/walls.
+      if (ball === grabbingBall) {
+        const gx = body.position.x + (grabTarget.x - body.position.x) * 0.18;
+        const gy = body.position.y + (grabTarget.y - body.position.y) * 0.18;
+        Body.setPosition(body, { x: gx, y: gy });
+        Body.setVelocity(body, { x: 0, y: 0 });
+        el.style.left = (gx - radius) + 'px';
+        el.style.top = (gy - radius) + 'px';
+        continue;
+      }
+
       const bx = body.position.x;
       const by = body.position.y;
 
@@ -1244,17 +1264,29 @@ function startAnimation() {
   const clawL = document.getElementById('clawL');
   const clawR = document.getElementById('clawR');
 
-  // Find the target ball in physics (matching dayNum)
-  const targetBall = physicsBalls.find(b => b.dayNum === dayNum);
+  // Find the target ball in physics (matching dayNum); fall back to any remaining ball.
+  let targetBall = physicsBalls.find(b => b.dayNum === dayNum);
+  if (!targetBall && physicsBalls.length) targetBall = physicsBalls[0];
 
-  // Step 1: Claw descends into globe, arms open
+  // Grab point in globe coords: horizontally centered, just above the globe center,
+  // which is where the descending claw's tip lands. Drive the target ball here so the
+  // claw actually closes on it. (cy/globeR tuned against the screenshot.)
+  if (targetBall) {
+    grabTarget = {
+      x: physicsMeta.cx,
+      y: physicsMeta.cy - physicsMeta.globeR * 0.12,
+    };
+    grabbingBall = targetBall; // tick() now glides this ball up to the grab point
+  }
+
+  // Step 1: Claw descends into globe, arms open. The ball glides up to meet it.
   clawL.setAttribute('d', 'M18 8 Q10 20, 8 32');
   clawR.setAttribute('d', 'M26 8 Q34 20, 36 32');
   clawSystem.className = 'claw-system descending';
   machine.classList.add('shaking');
   setTimeout(() => machine.classList.remove('shaking'), 500);
 
-  // Step 2: Arms close (grab), hide the physics ball, show grabbed ball
+  // Step 2: Arms close (grab), hide the physics ball, show grabbed ball on the claw.
   setTimeout(() => {
     clawL.setAttribute('d', 'M18 8 Q17 20, 19 32');
     clawR.setAttribute('d', 'M26 8 Q27 20, 25 32');
@@ -1264,12 +1296,13 @@ function startAnimation() {
       targetBall.el.style.opacity = '0';
       targetBall.el.style.transition = 'opacity 0.3s';
     }
-  }, 1000);
+  }, 1100);
 
-  // Step 3: Lift out
+  // Step 3: Lift out (ball is now riding the claw, not the physics body).
   setTimeout(() => {
+    grabbingBall = null;
     clawSystem.className = 'claw-system lifting';
-  }, 1600);
+  }, 1700);
 
   // Step 4: Show note overlay, remove ball from physics
   setTimeout(() => {
@@ -1283,7 +1316,8 @@ function startAnimation() {
       targetBall.el.remove();
       physicsBalls = physicsBalls.filter(b => b !== targetBall);
     }
-  }, 2600);
+    grabbingBall = null;
+  }, 2700);
 
   // Reset claw
   setTimeout(() => {
