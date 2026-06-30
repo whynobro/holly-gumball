@@ -634,14 +634,27 @@
     color: #aaa;
     letter-spacing: 0.5px;
   }
-  .note-card::before {
-    content: '\2764';
+  .note-fav {
     position: absolute;
-    top: 12px;
-    right: 16px;
-    font-size: 1rem;
+    top: 8px;
+    right: 12px;
+    font-size: 1.2rem;
+    line-height: 1;
     color: var(--pink-primary);
     opacity: 0.35;
+    cursor: pointer;
+    user-select: none;
+    padding: 4px;
+    transition: opacity 0.2s, transform 0.15s;
+    z-index: 2;
+  }
+  .note-fav:hover { opacity: 0.7; transform: scale(1.15); }
+  .note-fav.faved { opacity: 1; }
+  .note-fav.faved.pop { animation: heartPop 0.35s ease; }
+  @keyframes heartPop {
+    0% { transform: scale(1); }
+    40% { transform: scale(1.5); }
+    100% { transform: scale(1); }
   }
   .note-card::after {
     content: '';
@@ -742,6 +755,7 @@
     <div class="candy-twist right" id="twistRight"></div>
   </div>
   <div class="note-card" id="noteCard">
+    <div class="note-fav" id="noteFav" title="Favorite this note">&#10084;</div>
     <div class="day-label" id="dayLabel"></div>
     <div class="note-text" id="noteText"></div>
     <div class="close-hint">tap anywhere to close</div>
@@ -855,13 +869,26 @@ function getUnlockedDay() {
   return Math.min(dayNum, NOTES.length);
 }
 
+// Oldest unlocked day she hasn't collected yet. This is what the machine
+// dispenses, so a missed day is caught up (one tap each, in order) instead of lost.
+// Falls back to the current unlocked day once everything up to today is collected.
+function getNextDay() {
+  const unlocked = getUnlockedDay();
+  if (unlocked <= 0) return 0;
+  const col = getCollection();
+  for (let d = 1; d <= unlocked; d++) {
+    if (!col['day-' + d]) return d;
+  }
+  return unlocked; // all caught up; re-show current day
+}
+
 function getTodayNoteIndex() {
-  const day = getUnlockedDay();
+  const day = getNextDay();
   return day > 0 ? day - 1 : -1;
 }
 
 function getDayOfMonth() {
-  return getUnlockedDay();
+  return getNextDay();
 }
 
 // Local calendar date as YYYY-MM-DD (NOT UTC). Using toISOString() here caused an
@@ -1071,16 +1098,35 @@ function saveToCollection(dayOfMonth, noteText) {
     date: getTodayKey(),
     text: noteText,
     color: WRAPPER_COLORS[(dayOfMonth - 1) % WRAPPER_COLORS.length],
+    fav: col[key] ? !!col[key].fav : false, // keep favorite state if re-collected
   };
   localStorage.setItem('holly-gumball-collection', JSON.stringify(col));
+}
+
+// Toggle the favorite flag for a given day's note. Returns the new state.
+function toggleFavorite(dayNum) {
+  const col = getCollection();
+  const key = 'day-' + dayNum;
+  if (!col[key]) return false;
+  col[key].fav = !col[key].fav;
+  localStorage.setItem('holly-gumball-collection', JSON.stringify(col));
+  return col[key].fav;
+}
+function isFavorited(dayNum) {
+  return !!(getCollection()['day-' + dayNum] || {}).fav;
 }
 
 function renderCollection() {
   const list = document.getElementById('collectedList');
   const col = getCollection();
-  // Sort by note day number (ascending). String-sorting the keys broke ordering
-  // ("day-10" sorts before "day-3").
-  const entries = Object.entries(col).sort((a, b) => (a[1].day || 0) - (b[1].day || 0));
+  // Favorited notes pin to the top, then sort by day number ascending within each
+  // group. String-sorting the keys broke ordering ("day-10" sorts before "day-3").
+  const entries = Object.entries(col).sort((a, b) => {
+    const favA = a[1].fav ? 1 : 0;
+    const favB = b[1].fav ? 1 : 0;
+    if (favA !== favB) return favB - favA; // faved first
+    return (a[1].day || 0) - (b[1].day || 0);
+  });
   const badge = document.getElementById('badge');
 
   list.innerHTML = '';
@@ -1105,7 +1151,7 @@ function renderCollection() {
       : '';
 
     note.innerHTML = `
-      <div class="cn-day">Day ${data.day}${dateStr ? ' · ' + dateStr : ''}</div>
+      <div class="cn-day">${data.fav ? '&#10084; ' : ''}Day ${data.day}${dateStr ? ' · ' + dateStr : ''}</div>
       <div class="cn-text">${data.text}</div>
       <div class="cn-wrapper" style="background: linear-gradient(90deg, ${data.color}, ${data.color}88);"></div>
     `;
@@ -1139,9 +1185,12 @@ const alreadySeen = document.getElementById('alreadySeen');
 
 migrateCollection();
 const currentDay = getUnlockedDay();
-// True once today's note (by day number) is in the collection.
+// True once every unlocked note (today + any missed days) is collected, i.e.
+// nothing is pending. getNextDay() returns an already-collected day only in its
+// caught-up fallback, so that's the signal.
 function todayCollected() {
-  return !!getCollection()['day-' + getUnlockedDay()];
+  const next = getNextDay();
+  return next > 0 && !!getCollection()['day-' + next];
 }
 
 if (currentDay === 0) {
@@ -1152,7 +1201,10 @@ if (currentDay === 0) {
   playPrompt.textContent = "You've collected all 31 notes!";
   playPrompt.style.animation = 'none';
 } else if (todayCollected()) {
-  alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
+  alreadySeen.textContent = "All caught up! Tap to see today's note again.";
+} else {
+  // Pending notes (today and/or missed days) waiting to be grabbed.
+  playPrompt.textContent = 'Tap the machine';
 }
 
 machine.addEventListener('click', startAnimation);
@@ -1161,7 +1213,7 @@ function startAnimation() {
   if (animating) return;
 
   const noteIndex = getTodayNoteIndex();
-  const dayNum = getUnlockedDay();
+  const dayNum = getNextDay();
 
   if (noteIndex < 0) {
     playPrompt.textContent = 'Your first note unlocks June 25';
@@ -1232,20 +1284,41 @@ function startAnimation() {
   }, 3200);
 }
 
+let openNoteDay = null; // which day's note is currently shown (for the favorite heart)
+
 function showNote(dayNum, text, color) {
+  openNoteDay = dayNum;
   dayLabel.textContent = 'Day ' + dayNum + ' of 31';
   const fullText = text + '\n\nI love you ❤';
   noteText.innerHTML = fullText.replace(/\n/g, '<br>');
   candyBody.style.background = color || '#e74c6f';
   twistLeft.style.background = color || '#e74c6f';
   twistRight.style.background = color || '#e74c6f';
+  // Reflect the saved favorite state on the heart.
+  noteFav.classList.toggle('faved', isFavorited(dayNum));
+  noteFav.classList.remove('pop');
   overlay.classList.add('active');
 }
+
+// Heart toggles favorite; stop the click from bubbling to the overlay (which closes it).
+const noteFav = document.getElementById('noteFav');
+noteFav.addEventListener('click', (e) => {
+  e.stopPropagation();
+  if (openNoteDay == null) return;
+  const nowFav = toggleFavorite(openNoteDay);
+  noteFav.classList.toggle('faved', nowFav);
+  if (nowFav) {
+    noteFav.classList.remove('pop');
+    void noteFav.offsetWidth; // restart animation
+    noteFav.classList.add('pop');
+  }
+  renderCollection(); // re-sort sidebar so the favorite jumps to the top
+});
 
 overlay.addEventListener('click', () => {
   overlay.classList.remove('active');
   if (todayCollected()) {
-    alreadySeen.textContent = "Today's note is collected! Tap to see it again.";
+    alreadySeen.textContent = "All caught up! Tap to see today's note again.";
   }
 });
 
