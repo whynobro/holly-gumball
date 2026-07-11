@@ -594,9 +594,15 @@
     transform: translate(-50%, -50%) scale(0) rotate(-3deg);
     width: clamp(260px, 78vw, 420px);
     min-height: 200px;
+    max-height: 80vh;
+    max-height: 80dvh;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: linear-gradient(145deg, var(--pink-mist), var(--cream), var(--cream-warm));
     border-radius: 16px;
     padding: 36px 28px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(219,39,119,0.35) transparent;
     box-shadow:
       0 15px 50px rgba(0,0,0,0.35),
       0 0 0 1px rgba(0,0,0,0.05),
@@ -606,7 +612,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content: flex-start;
     text-align: center;
     cursor: pointer;
   }
@@ -706,8 +712,8 @@
 
 <!-- Main content -->
 <div class="main">
-  <h1>For My Holly Love</h1>
-  <div class="subtitle">A new note unlocks every morning</div>
+  <h1>For Holly, My Love</h1>
+  <div class="subtitle">A new note unlocks every night</div>
 
   <div class="machine-wrapper" id="machine">
     <!-- Claw system -->
@@ -793,7 +799,7 @@ const NOTES = [
   // Day 12 - July 6
   "The fact that you chose me still catches me off guard. Not in a self-doubt way, in a grateful way. Like finding out your favorite song was written about you. It still feels wrong in some sort of way in the most normal way possible. How is all of this free? It feels like it should cost me something and yet here we are everyday, our relationship, becoming more and more valuable. (Best investment of all time btw).",
   // Day 13 - July 7
-  "Holly, you are warm in a way that doesn't ask for anything in return. You just give it. And I felt it instantly. I felt it the moment I met you, Lord knows. (My love ur aura is so pretty!+loving I knew it the moment I saw you, I know you may call ca i)",
+  "Holly, you are warm in a way that doesn't ask for anything in return. You just give it. And I felt it instantly. I felt it the moment I met you, Lord knows. (My love, ur aura is so pretty + loving. I knew it the moment I saw you.)",
   // Day 14 - July 8
   "One of the things I admire most about you is how you go after what you want. No performance, no announcement, just quiet relentless effort. It makes me want to match your energy. People always say love is corny until you find it and it's so so true. I genuinely want to become a better person because of us.",
   // Day 15 - July 9
@@ -851,10 +857,11 @@ const BALL_COLORS = [
 ];
 
 // ---- DATE LOGIC ----
-// Day 1 unlocks June 25, 2026 at 3:00 AM local time
-// Day 2 unlocks June 26, 2026 at 3:00 AM, etc.
-const START_DATE = new Date(2026, 5, 25, 3, 0, 0); // June 25 2026 3AM
-const UNLOCK_HOUR = 3; // 3 AM
+// Day 1 unlocks June 25, 2026 at 9:00 PM local time
+// Day 2 unlocks June 26, 2026 at 9:00 PM, etc.
+// Unlock is at night so each note is ready right before she goes to bed (was 3 AM).
+const START_DATE = new Date(2026, 5, 25, 21, 0, 0); // June 25 2026 9PM
+const UNLOCK_HOUR = 21; // 9 PM
 
 // The calendar date a given day's note unlocks (Day 1 = June 25), as local YYYY-MM-DD.
 // This is what the collected-notes list should show, NOT the date she happened to grab it.
