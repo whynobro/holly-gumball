@@ -873,28 +873,26 @@ function unlockDateStr(dayNum) {
 
 function getUnlockedDay() {
   const now = new Date();
-  // How many days since start (accounting for 3AM unlock)
-  const effectiveNow = new Date(now);
-  if (effectiveNow.getHours() < UNLOCK_HOUR) {
+  // Which unlock-day are we in? Before the unlock hour, we still belong to the
+  // previous calendar day's note. Normalize both "now" and the start to midnight
+  // (date-only) before diffing so the time-of-day can't skew the day count.
+  const effectiveNow = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (now.getHours() < UNLOCK_HOUR) {
     effectiveNow.setDate(effectiveNow.getDate() - 1);
   }
-  const diffMs = effectiveNow - START_DATE;
+  const startDay = new Date(2026, 5, 25); // June 25 2026, local midnight (Day 1)
+  const diffMs = effectiveNow - startDay;
   if (diffMs < 0) return 0; // not started yet
-  const dayNum = Math.floor(diffMs / 86400000) + 1;
+  const dayNum = Math.round(diffMs / 86400000) + 1;
   return Math.min(dayNum, NOTES.length);
 }
 
-// Oldest unlocked day she hasn't collected yet. This is what the machine
-// dispenses, so a missed day is caught up (one tap each, in order) instead of lost.
-// Falls back to the current unlocked day once everything up to today is collected.
+// The machine always dispenses the LATEST unlocked note (the current day), not an
+// older missed one. So at 9 PM each night she gets that night's note, even if she
+// skipped previous nights. Older notes stay accessible from the collection sidebar
+// once collected, but the machine itself only ever hands out today's.
 function getNextDay() {
-  const unlocked = getUnlockedDay();
-  if (unlocked <= 0) return 0;
-  const col = getCollection();
-  for (let d = 1; d <= unlocked; d++) {
-    if (!col['day-' + d]) return d;
-  }
-  return unlocked; // all caught up; re-show current day
+  return getUnlockedDay();
 }
 
 function getTodayNoteIndex() {
