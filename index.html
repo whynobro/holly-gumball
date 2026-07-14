@@ -811,29 +811,29 @@ const NOTES = [
   // Day 18 - July 12
   "If you haven't watched the youtube video I sent you at this point this probably won't make any sense. But Holly I think I understand you better now. I'm pretty sure I'm about level six on the scale he proposed, maybe even a low level 6 and I see you up there confidently tussling with level 7 ideas. I understand that maybe I have not reached that level of thinking yet and I am going to do my best to get there so I can live it with you. According to this chart btw ur much smarter than me, thought I'd just throw that out there.",
   // Day 19 - July 13
-  "You love people without keeping score. I've watched you do it, and it's the most quietly powerful thing I've ever seen. It changed how I want to love.",
+  "Something I really like about our relationship is that we conquer the big 3 so well. I remember reading something that said that good relationships have 2 of these things done well. Emotional connection, physical connection, and intellectual connection. Holly I think we do all 3 so well and this makes me so excited for our future together. I love you ❤️",
   // Day 20 - July 14
-  "I think the thing that surprised me most about falling for you is how calm it was. No chaos, no drama. Just this slow, steady feeling of, 'oh, there you are. I've been looking for you.'",
-  // Day 21 - July 15
   "I love that you make me laugh at myself. Not in a mean way. In that way, suddenly the thing I was stressed about just... doesn't matter anymore. I know when we're on facetime sometimes you'll be like \"why are you laughing with that cute mad face of yours,\" and I'm just happy to be talking with you.",
-  // Day 22 - July 16
+  // Day 21 - July 15
   "If someone told me a year ago that I'd feel this way about another person, I'd call cap. Now I get it. Some things you just have to feel to believe. I told you I worried if I have ever loved someone before but now I have no worries.",
-  // Day 23 - July 17
+  // Day 22 - July 16
   "You treat my dreams like they're real, even when they're half-formed and I can barely explain them. That kind of belief from someone you love is rare. I don't take it for granted. One day I have an idea for an app, the next day I'm building it because I can barely keep up with my amazing girlfriend. Lord knows how much money I'm gonna have to make to prove to myself I'm worthy of your love. And don't get mad at me for that I know, it's good motivation. Yes, yes it's not always about money and I know that, I want to learn the balance with you.",
-  // Day 24 - July 18
-  "Holly, you have this way of holding space for people without even trying. I've seen you do it for strangers. You did it for me before you even knew you were doing it. You've changed my views on so many things in such a good way.",
-  // Day 25 - July 19
+  // Day 23 - July 17
   "I love how we can go from the deepest conversation to the dumbest joke in three seconds flat. I know it pisses you off sometimes that I joke during everything but that has to be the best way to live life, nothing is that serious and I know you disagree but it's our life and we get to decide what is worth stressing us out enough to not laugh along the way.",
-  // Day 26 - July 20
+  // Day 24 - July 18
   "You don't just listen to me. You hear me. There's a difference, and you're one of the only people who's ever shown me what that looks like.",
-  // Day 27 - July 21
+  // Day 25 - July 19
   "I think about the future a lot more now. Not because I have to, but because for the first time it's something I actually want to get to. And you're in every version of it.",
-  // Day 28 - July 22
+  // Day 26 - July 20
   "I don't like when people argue about who loves who more. I don't think this makes any sense to me. I love you the maximum amount I can and try my hardest to love you in the way that is best for you, for us!",
-  // Day 29 - July 23
+  // Day 27 - July 21
   "Holly, you are the kind of person I'd want to know even if I wasn't in love with you. The fact that I get both is something I'll never stop being grateful for.",
-  // Day 30 - July 24
+  // Day 28 - July 22
   "You make the ordinary stuff feel like it matters. Coffee in the morning, a text in the middle of the day, falling asleep next to you. You turned the small things into the big things.",
+  // Day 29 - July 23
+  "Sometimes I forget what the sound of your laugh sounds like to me. At first I was like Michael, how could you? Something you’d say by the way, but I realized it because everytime you laugh my mind goes blissful peace like headscratches almost like the laugh to me sounds like the most beautiful thing in the world.",
+  // Day 30 - July 24
+  "When I disagree with people on things, especially people I want to impress, I often get worried that if I don’t see eye to eye on things that will be the end all be all. With you I'm slowly changing that. After a disagreement about any topic I don’t see you confront it with anger or try to change my mind like everyone else in my life does. I don’t know how to explain it but because of this I believe almost everything you say and see myself learning and taking on new and stronger beliefs because of you. My philosophy teacher would be very happy I have you.",
   // Day 31 - July 25
   "Thirty-one notes and I could keep going. I could fill a thousand of these. But here's the simple version: you are my favorite person, Holly. Today, tomorrow, and every day I get with you.",
 ];
@@ -1118,8 +1118,13 @@ function migrateCollection() {
     // Always set the date to the note's unlock date (Day 1 = June 25). Older versions
     // stored the date she happened to collect it, which was wrong.
     const date = unlockDateStr(data.day);
-    out[newKey] = { ...data, date };
-    if (newKey !== key || data.date !== date) changed = true;
+    // Refresh the stored text from the current NOTES array so an edit to a note's
+    // wording heals already-collected copies on next load (localStorage is the source
+    // of truth for the collection view, not NOTES). Day N => NOTES[N-1].
+    const canonicalText = NOTES[data.day - 1];
+    const text = (typeof canonicalText === 'string') ? canonicalText : data.text;
+    out[newKey] = { ...data, date, text };
+    if (newKey !== key || data.date !== date || data.text !== text) changed = true;
   }
   if (changed) localStorage.setItem('holly-gumball-collection', JSON.stringify(out));
 }
